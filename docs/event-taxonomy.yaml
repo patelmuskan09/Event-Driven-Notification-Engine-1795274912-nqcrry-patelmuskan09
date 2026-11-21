@@ -1,0 +1,492 @@
+# Financial Event Taxonomy Specification (25+ Events)
+# Compliant with SEBI & TRAI Regulations
+version: "1.0.0"
+events:
+  # =========================================================================
+  # A. Transaction Events (TXNX)
+  # =========================================================================
+  - code: "TXNX-001"
+    name: "Buy Order Executed"
+    category: "TRANSACTION"
+    priority: "HIGH"
+    regulatory_classification: "TRANSACTIONAL"
+    permitted_channels: ["SMS", "EMAIL", "PUSH", "WHATSAPP", "IN_APP"]
+    mandatory_channels: ["SMS", "EMAIL"]
+    max_delivery_latency_seconds: 15
+    retry_policy:
+      priority: "HIGH"
+      max_retries: 5
+      base_delay_ms: 1000
+      max_delay_ms: 300000
+    payload_fields:
+      order_id: "string (UUID)"
+      symbol: "string (e.g. RELIANCE, INFOSYS)"
+      quantity: "number (>0)"
+      price: "number (>0)"
+      total_amount: "number (>0)"
+      execution_time: "ISO8601"
+      exchange: "NSE | BSE | MCX"
+
+  - code: "TXNX-002"
+    name: "Sell Order Executed"
+    category: "TRANSACTION"
+    priority: "HIGH"
+    regulatory_classification: "TRANSACTIONAL"
+    permitted_channels: ["SMS", "EMAIL", "PUSH", "WHATSAPP", "IN_APP"]
+    mandatory_channels: ["SMS", "EMAIL"]
+    max_delivery_latency_seconds: 15
+    retry_policy:
+      priority: "HIGH"
+      max_retries: 5
+      base_delay_ms: 1000
+      max_delay_ms: 300000
+    payload_fields:
+      order_id: "string (UUID)"
+      symbol: "string"
+      quantity: "number"
+      price: "number"
+      total_amount: "number"
+      execution_time: "ISO8601"
+      exchange: "NSE | BSE"
+
+  - code: "TXNX-003"
+    name: "Order Rejected"
+    category: "TRANSACTION"
+    priority: "HIGH"
+    regulatory_classification: "TRANSACTIONAL"
+    permitted_channels: ["SMS", "EMAIL", "PUSH", "IN_APP"]
+    mandatory_channels: ["IN_APP", "PUSH"]
+    max_delivery_latency_seconds: 10
+    retry_policy:
+      priority: "HIGH"
+      max_retries: 5
+      base_delay_ms: 1000
+      max_delay_ms: 300000
+    payload_fields:
+      order_id: "string"
+      symbol: "string"
+      rejection_reason: "string"
+      rejection_code: "string"
+
+  - code: "TXNX-004"
+    name: "Dividend Credited"
+    category: "TRANSACTION"
+    priority: "MEDIUM"
+    regulatory_classification: "TRANSACTIONAL"
+    permitted_channels: ["EMAIL", "PUSH", "WHATSAPP", "IN_APP"]
+    mandatory_channels: ["EMAIL"]
+    max_delivery_latency_seconds: 1800
+    retry_policy:
+      priority: "MEDIUM"
+      max_retries: 3
+      base_delay_ms: 5000
+      max_delay_ms: 1800000
+    payload_fields:
+      symbol: "string"
+      amount: "number"
+      shares_count: "number"
+      payout_date: "ISO8601"
+
+  - code: "TXNX-005"
+    name: "Funds Deposited"
+    category: "TRANSACTION"
+    priority: "HIGH"
+    regulatory_classification: "TRANSACTIONAL"
+    permitted_channels: ["SMS", "EMAIL", "PUSH", "IN_APP"]
+    mandatory_channels: ["SMS", "EMAIL"]
+    max_delivery_latency_seconds: 20
+    retry_policy:
+      priority: "HIGH"
+      max_retries: 5
+      base_delay_ms: 1000
+      max_delay_ms: 300000
+    payload_fields:
+      transaction_id: "string"
+      amount: "number"
+      balance_after: "number"
+      payment_mode: "UPI | NETBANKING | NEFT | RTGS"
+
+  # =========================================================================
+  # B. Risk and Margin Events (RISK) - CRITICAL MANDATES
+  # =========================================================================
+  - code: "RISK-001"
+    name: "Margin Call Warning"
+    category: "RISK"
+    priority: "CRITICAL"
+    regulatory_classification: "REGULATORY_MANDATORY"
+    permitted_channels: ["SMS", "EMAIL", "PUSH", "WHATSAPP", "IN_APP"]
+    mandatory_channels: ["SMS", "EMAIL", "PUSH"]
+    max_delivery_latency_seconds: 10
+    retry_policy:
+      priority: "CRITICAL"
+      max_retries: 10
+      base_delay_ms: 500
+      max_delay_ms: 60000
+    payload_fields:
+      account_id: "string"
+      required_margin: "number"
+      available_margin: "number"
+      shortfall: "number"
+      deadline_time: "ISO8601"
+
+  - code: "RISK-002"
+    name: "Margin Shortfall"
+    category: "RISK"
+    priority: "CRITICAL"
+    regulatory_classification: "REGULATORY_MANDATORY"
+    permitted_channels: ["SMS", "EMAIL", "PUSH", "WHATSAPP", "IN_APP"]
+    mandatory_channels: ["SMS", "EMAIL", "PUSH"]
+    max_delivery_latency_seconds: 10
+    retry_policy:
+      priority: "CRITICAL"
+      max_retries: 10
+      base_delay_ms: 500
+      max_delay_ms: 60000
+    payload_fields:
+      account_id: "string"
+      shortfall_amount: "number"
+      penalty_risk_amount: "number"
+      deadline: "ISO8601"
+
+  - code: "RISK-003"
+    name: "Position Squared Off"
+    category: "RISK"
+    priority: "CRITICAL"
+    regulatory_classification: "REGULATORY_MANDATORY"
+    permitted_channels: ["SMS", "EMAIL", "PUSH", "WHATSAPP", "IN_APP"]
+    mandatory_channels: ["SMS", "EMAIL"]
+    max_delivery_latency_seconds: 10
+    retry_policy:
+      priority: "CRITICAL"
+      max_retries: 10
+      base_delay_ms: 500
+      max_delay_ms: 60000
+    payload_fields:
+      positions: "array of objects"
+      liquidation_value: "number"
+      loss_incurred: "number"
+      reason: "RMS_AUTO_SQUAREOFF"
+
+  - code: "RISK-004"
+    name: "Portfolio Risk Alert"
+    category: "RISK"
+    priority: "HIGH"
+    regulatory_classification: "TRANSACTIONAL"
+    permitted_channels: ["EMAIL", "PUSH", "IN_APP"]
+    mandatory_channels: ["IN_APP", "PUSH"]
+    max_delivery_latency_seconds: 60
+    retry_policy:
+      priority: "HIGH"
+      max_retries: 5
+      base_delay_ms: 1000
+      max_delay_ms: 300000
+    payload_fields:
+      var_95: "number"
+      beta: "number"
+      recommendation: "string"
+
+  - code: "RISK-005"
+    name: "Concentration Alert"
+    category: "RISK"
+    priority: "MEDIUM"
+    regulatory_classification: "TRANSACTIONAL"
+    permitted_channels: ["EMAIL", "PUSH", "IN_APP"]
+    mandatory_channels: ["IN_APP"]
+    max_delivery_latency_seconds: 300
+    retry_policy:
+      priority: "MEDIUM"
+      max_retries: 3
+      base_delay_ms: 5000
+      max_delay_ms: 1800000
+    payload_fields:
+      symbol: "string"
+      sector: "string"
+      concentration_percent: "number"
+      threshold_percent: "number"
+
+  # =========================================================================
+  # C. SIP and Investment Events (SIPX)
+  # =========================================================================
+  - code: "SIPX-001"
+    name: "SIP Due Reminder"
+    category: "SIP"
+    priority: "MEDIUM"
+    regulatory_classification: "TRANSACTIONAL"
+    permitted_channels: ["EMAIL", "PUSH", "WHATSAPP", "IN_APP"]
+    mandatory_channels: ["PUSH", "IN_APP"]
+    max_delivery_latency_seconds: 1800
+    retry_policy:
+      priority: "MEDIUM"
+      max_retries: 3
+      base_delay_ms: 5000
+      max_delay_ms: 1800000
+    payload_fields:
+      fund_name: "string"
+      amount: "number"
+      due_date: "ISO8601"
+      mandate_bank: "string"
+
+  - code: "SIPX-002"
+    name: "SIP Executed"
+    category: "SIP"
+    priority: "MEDIUM"
+    regulatory_classification: "TRANSACTIONAL"
+    permitted_channels: ["EMAIL", "PUSH", "WHATSAPP", "IN_APP"]
+    mandatory_channels: ["EMAIL", "IN_APP"]
+    max_delivery_latency_seconds: 300
+    retry_policy:
+      priority: "MEDIUM"
+      max_retries: 3
+      base_delay_ms: 5000
+      max_delay_ms: 1800000
+    payload_fields:
+      fund_name: "string"
+      amount: "number"
+      nav: "number"
+      units_allotted: "number"
+
+  - code: "SIPX-003"
+    name: "SIP Failed"
+    category: "SIP"
+    priority: "HIGH"
+    regulatory_classification: "TRANSACTIONAL"
+    permitted_channels: ["SMS", "EMAIL", "PUSH", "WHATSAPP", "IN_APP"]
+    mandatory_channels: ["SMS", "EMAIL"]
+    max_delivery_latency_seconds: 60
+    retry_policy:
+      priority: "HIGH"
+      max_retries: 5
+      base_delay_ms: 1000
+      max_delay_ms: 300000
+    payload_fields:
+      fund_name: "string"
+      amount: "number"
+      failure_reason: "INSUFFICIENT_FUNDS | MANDATE_EXPIRED"
+      retry_date: "ISO8601"
+
+  - code: "SIPX-004"
+    name: "SIP Step-Up Reminder"
+    category: "SIP"
+    priority: "LOW"
+    regulatory_classification: "PROMOTIONAL"
+    permitted_channels: ["EMAIL", "PUSH", "WHATSAPP", "IN_APP"]
+    mandatory_channels: ["IN_APP"]
+    max_delivery_latency_seconds: 3600
+    retry_policy:
+      priority: "LOW"
+      max_retries: 2
+      base_delay_ms: 30000
+      max_delay_ms: 7200000
+    payload_fields:
+      fund_name: "string"
+      current_amount: "number"
+      suggested_amount: "number"
+
+  - code: "SIPX-005"
+    name: "Goal Milestone Reached"
+    category: "SIP"
+    priority: "LOW"
+    regulatory_classification: "PROMOTIONAL"
+    permitted_channels: ["EMAIL", "PUSH", "WHATSAPP", "IN_APP"]
+    mandatory_channels: ["IN_APP"]
+    max_delivery_latency_seconds: 3600
+    retry_policy:
+      priority: "LOW"
+      max_retries: 2
+      base_delay_ms: 30000
+      max_delay_ms: 7200000
+    payload_fields:
+      goal_name: "string"
+      target_amount: "number"
+      achieved_amount: "number"
+      percentage_achieved: "number"
+
+  # =========================================================================
+  # D. Market and Price Events (MKTX)
+  # =========================================================================
+  - code: "MKTX-001"
+    name: "Price Alert Triggered"
+    category: "MARKET"
+    priority: "HIGH"
+    regulatory_classification: "TRANSACTIONAL"
+    permitted_channels: ["PUSH", "IN_APP", "SMS", "WHATSAPP"]
+    mandatory_channels: ["PUSH", "IN_APP"]
+    max_delivery_latency_seconds: 15
+    retry_policy:
+      priority: "HIGH"
+      max_retries: 5
+      base_delay_ms: 1000
+      max_delay_ms: 300000
+    payload_fields:
+      symbol: "string"
+      target_price: "number"
+      current_price: "number"
+      change_percentage: "number"
+
+  - code: "MKTX-002"
+    name: "Circuit Breaker Hit"
+    category: "MARKET"
+    priority: "HIGH"
+    regulatory_classification: "TRANSACTIONAL"
+    permitted_channels: ["PUSH", "IN_APP"]
+    mandatory_channels: ["PUSH", "IN_APP"]
+    max_delivery_latency_seconds: 30
+    retry_policy:
+      priority: "HIGH"
+      max_retries: 5
+      base_delay_ms: 1000
+      max_delay_ms: 300000
+    payload_fields:
+      symbol: "string"
+      circuit_type: "UPPER | LOWER"
+      band_percentage: "number"
+      halt_duration_minutes: "number"
+
+  - code: "MKTX-003"
+    name: "Market Open/Close"
+    category: "MARKET"
+    priority: "LOW"
+    regulatory_classification: "PROMOTIONAL"
+    permitted_channels: ["PUSH", "IN_APP"]
+    mandatory_channels: ["IN_APP"]
+    max_delivery_latency_seconds: 300
+    retry_policy:
+      priority: "LOW"
+      max_retries: 2
+      base_delay_ms: 30000
+      max_delay_ms: 7200000
+    payload_fields:
+      session: "PRE_OPEN | MARKET_OPEN | MARKET_CLOSE"
+      indices: "object (NIFTY50, SENSEX)"
+
+  - code: "MKTX-004"
+    name: "52-Week High/Low"
+    category: "MARKET"
+    priority: "LOW"
+    regulatory_classification: "PROMOTIONAL"
+    permitted_channels: ["PUSH", "IN_APP"]
+    mandatory_channels: ["IN_APP"]
+    max_delivery_latency_seconds: 600
+    retry_policy:
+      priority: "LOW"
+      max_retries: 2
+      base_delay_ms: 30000
+      max_delay_ms: 7200000
+    payload_fields:
+      symbol: "string"
+      milestone: "52_WEEK_HIGH | 52_WEEK_LOW"
+      price: "number"
+
+  - code: "MKTX-005"
+    name: "Earnings Announcement"
+    category: "MARKET"
+    priority: "MEDIUM"
+    regulatory_classification: "PROMOTIONAL"
+    permitted_channels: ["EMAIL", "PUSH", "IN_APP"]
+    mandatory_channels: ["IN_APP"]
+    max_delivery_latency_seconds: 1800
+    retry_policy:
+      priority: "MEDIUM"
+      max_retries: 3
+      base_delay_ms: 5000
+      max_delay_ms: 1800000
+    payload_fields:
+      symbol: "string"
+      q_period: "string (e.g. Q3 FY26)"
+      revenue_growth: "number"
+      pat_growth: "number"
+
+  # =========================================================================
+  # E. Regulatory and Compliance Events (REGX)
+  # =========================================================================
+  - code: "REGX-001"
+    name: "KYC Expiry Warning"
+    category: "REGULATORY"
+    priority: "HIGH"
+    regulatory_classification: "REGULATORY_MANDATORY"
+    permitted_channels: ["SMS", "EMAIL", "PUSH", "WHATSAPP", "IN_APP"]
+    mandatory_channels: ["SMS", "EMAIL"]
+    max_delivery_latency_seconds: 300
+    retry_policy:
+      priority: "HIGH"
+      max_retries: 5
+      base_delay_ms: 1000
+      max_delay_ms: 300000
+    payload_fields:
+      kyc_expiry_date: "ISO8601"
+      rekyc_portal_url: "string"
+      days_remaining: "number"
+
+  - code: "REGX-002"
+    name: "Nominee Update Reminder"
+    category: "REGULATORY"
+    priority: "MEDIUM"
+    regulatory_classification: "REGULATORY_MANDATORY"
+    permitted_channels: ["EMAIL", "PUSH", "IN_APP"]
+    mandatory_channels: ["EMAIL", "IN_APP"]
+    max_delivery_latency_seconds: 3600
+    retry_policy:
+      priority: "MEDIUM"
+      max_retries: 3
+      base_delay_ms: 5000
+      max_delay_ms: 1800000
+    payload_fields:
+      deadline_date: "ISO8601"
+      opt_out_available: "boolean"
+
+  - code: "REGX-003"
+    name: "Contract Note Generated"
+    category: "REGULATORY"
+    priority: "HIGH"
+    regulatory_classification: "REGULATORY_MANDATORY"
+    permitted_channels: ["EMAIL", "SMS", "IN_APP"]
+    mandatory_channels: ["EMAIL"]
+    max_delivery_latency_seconds: 300
+    retry_policy:
+      priority: "HIGH"
+      max_retries: 5
+      base_delay_ms: 1000
+      max_delay_ms: 300000
+    payload_fields:
+      trade_date: "ISO8601"
+      contract_note_number: "string"
+      download_url: "string"
+      net_payable_receivable: "number"
+
+  - code: "REGX-004"
+    name: "Tax Statement Available"
+    category: "REGULATORY"
+    priority: "MEDIUM"
+    regulatory_classification: "REGULATORY_MANDATORY"
+    permitted_channels: ["EMAIL", "IN_APP"]
+    mandatory_channels: ["EMAIL", "IN_APP"]
+    max_delivery_latency_seconds: 1800
+    retry_policy:
+      priority: "MEDIUM"
+      max_retries: 3
+      base_delay_ms: 5000
+      max_delay_ms: 1800000
+    payload_fields:
+      financial_year: "string"
+      statement_type: "CAPITAL_GAINS | PNL"
+      download_url: "string"
+
+  - code: "REGX-005"
+    name: "Regulatory Policy Change"
+    category: "REGULATORY"
+    priority: "CRITICAL"
+    regulatory_classification: "REGULATORY_MANDATORY"
+    permitted_channels: ["SMS", "EMAIL", "PUSH", "WHATSAPP", "IN_APP"]
+    mandatory_channels: ["SMS", "EMAIL", "IN_APP"]
+    max_delivery_latency_seconds: 30
+    retry_policy:
+      priority: "CRITICAL"
+      max_retries: 10
+      base_delay_ms: 500
+      max_delay_ms: 60000
+    payload_fields:
+      circular_number: "string"
+      issuing_authority: "SEBI | RBI | NSE | BSE"
+      title: "string"
+      effective_date: "ISO8601"
+      summary: "string"

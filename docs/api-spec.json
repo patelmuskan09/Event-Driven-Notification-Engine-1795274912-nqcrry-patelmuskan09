@@ -1,0 +1,309 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "Event-Driven Financial Notification Engine API (BE-6B)",
+    "version": "1.0.0",
+    "description": "Enterprise financial notification infrastructure with 25 event types, multi-channel routing, TRAI DND dispatch checks, atomic Redis frequency capping, and JWT RBAC."
+  },
+  "components": {
+    "securitySchemes": {
+      "bearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT"
+      }
+    }
+  },
+  "security": [
+    {
+      "bearerAuth": []
+    }
+  ],
+  "paths": {
+    "/api/v1/auth/login": {
+      "post": {
+        "tags": [
+          "Authentication"
+        ],
+        "security": [],
+        "summary": "Issue short-lived JWT access token (<=1h) and refresh token"
+      }
+    },
+    "/api/v1/auth/refresh": {
+      "post": {
+        "tags": [
+          "Authentication"
+        ],
+        "security": [],
+        "summary": "Rotate single-use refresh token and obtain fresh token pair"
+      }
+    },
+    "/api/v1/auth/logout": {
+      "post": {
+        "tags": [
+          "Authentication"
+        ],
+        "security": [],
+        "summary": "Revoke active refresh token session"
+      }
+    },
+    "/api/v1/events": {
+      "post": {
+        "tags": [
+          "Ingestion"
+        ],
+        "summary": "Ingest and validate financial event (25 strict event schemas)",
+        "responses": {
+          "202": {
+            "description": "Accepted for asynchronous processing"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "422": {
+            "description": "Schema validation error"
+          }
+        }
+      }
+    },
+    "/api/v1/events/taxonomy": {
+      "get": {
+        "tags": [
+          "Ingestion"
+        ],
+        "summary": "Retrieve catalog of all 25 financial event definitions"
+      }
+    },
+    "/api/v1/events/sample/{eventType}": {
+      "get": {
+        "tags": [
+          "Ingestion"
+        ],
+        "summary": "Retrieve schema-valid sample payload for eventType"
+      }
+    },
+    "/api/v1/users/{userId}/preferences": {
+      "get": {
+        "tags": [
+          "Preferences"
+        ],
+        "summary": "Get 4-level resolved user notification preferences"
+      },
+      "put": {
+        "tags": [
+          "Preferences"
+        ],
+        "summary": "Update user preferences (rate limited 10 req/min)"
+      }
+    },
+    "/api/v1/users/{userId}/consent": {
+      "get": {
+        "tags": [
+          "Compliance"
+        ],
+        "summary": "List immutable consent records for user"
+      },
+      "post": {
+        "tags": [
+          "Compliance"
+        ],
+        "summary": "Record SMS/WhatsApp/Email opt-in or opt-out decision"
+      }
+    },
+    "/api/v1/users/{userId}/data": {
+      "delete": {
+        "tags": [
+          "Compliance"
+        ],
+        "summary": "Right-to-Erasure: Anonymise user PII across stores (ADMIN)"
+      }
+    },
+    "/api/v1/notifications": {
+      "get": {
+        "tags": [
+          "Tracking"
+        ],
+        "summary": "List paginated notification records"
+      }
+    },
+    "/api/v1/notifications/{notificationId}": {
+      "get": {
+        "tags": [
+          "Tracking"
+        ],
+        "summary": "Get full state machine history and compliance audit trail"
+      }
+    },
+    "/api/v1/notifications/{notificationId}/read": {
+      "post": {
+        "tags": [
+          "Tracking"
+        ],
+        "summary": "Record notification READ engagement event"
+      }
+    },
+    "/api/v1/notifications/{notificationId}/click": {
+      "post": {
+        "tags": [
+          "Tracking"
+        ],
+        "summary": "Record notification CLICKED engagement event"
+      }
+    },
+    "/api/v1/webhooks/{provider}": {
+      "post": {
+        "tags": [
+          "Webhooks"
+        ],
+        "security": [],
+        "summary": "HMAC-SHA256 verified provider delivery receipt webhook (DELIVERED/READ/BOUNCED/CLICKED)"
+      }
+    },
+    "/api/v1/analytics/delivery-rates": {
+      "get": {
+        "tags": [
+          "Analytics"
+        ],
+        "summary": "Delivery rates, critical P50/P95/P99 latency, open & CTR metrics"
+      }
+    },
+    "/api/v1/analytics/channel-performance": {
+      "get": {
+        "tags": [
+          "Analytics"
+        ],
+        "summary": "Per-channel, per-provider, per-language, and event breakdown"
+      }
+    },
+    "/api/v1/analytics/opt-out-trends": {
+      "get": {
+        "tags": [
+          "Analytics"
+        ],
+        "summary": "DND blocks, opt-out trends, cap hits, quiet queues & INR cost"
+      }
+    },
+    "/api/v1/alerts": {
+      "get": {
+        "tags": [
+          "Operations"
+        ],
+        "summary": "Evaluate live Section 17 operational alerts"
+      }
+    },
+    "/api/v1/templates": {
+      "get": {
+        "tags": [
+          "Templates"
+        ],
+        "summary": "List registered multi-lingual template coverage"
+      }
+    },
+    "/api/v1/dlq": {
+      "get": {
+        "tags": [
+          "Operations"
+        ],
+        "summary": "List Dead Letter Queue entries"
+      }
+    },
+    "/api/v1/dlq/{dlqId}/retry": {
+      "post": {
+        "tags": [
+          "Operations"
+        ],
+        "summary": "Initiate manual retry for DLQ entry (ADMIN/OPERATOR)"
+      }
+    },
+    "/api/v1/dlq/{dlqId}/discard": {
+      "post": {
+        "tags": [
+          "Operations"
+        ],
+        "summary": "Discard permanent failure from DLQ (ADMIN/OPERATOR)"
+      }
+    },
+    "/api/v1/providers/health": {
+      "get": {
+        "tags": [
+          "Operations"
+        ],
+        "summary": "Provider statuses, SANDBOX/LIVE modes & circuit breaker states"
+      }
+    },
+    "/api/v1/providers/{provider}/toggle-failure": {
+      "post": {
+        "tags": [
+          "Operations"
+        ],
+        "summary": "Toggle simulated failure on provider for failover testing"
+      }
+    },
+    "/api/v1/maintenance/scrub-pii": {
+      "post": {
+        "tags": [
+          "Compliance"
+        ],
+        "summary": "Scrub personalisation payloads older than 90 days (ADMIN)"
+      }
+    },
+    "/api/v1/simulations/market-crash": {
+      "post": {
+        "tags": [
+          "Simulations"
+        ],
+        "summary": "Run Challenge 1: Market Crash Simulation"
+      }
+    },
+    "/api/v1/simulations/provider-outage": {
+      "post": {
+        "tags": [
+          "Simulations"
+        ],
+        "summary": "Run Challenge 2: Provider Outage & Failover"
+      }
+    },
+    "/api/v1/simulations/compliance-audit": {
+      "get": {
+        "tags": [
+          "Simulations"
+        ],
+        "summary": "Run Challenge 3: 90-Day Compliance Audit Export"
+      }
+    },
+    "/api/v1/simulations/notification-storm": {
+      "post": {
+        "tags": [
+          "Simulations"
+        ],
+        "summary": "Run Challenge 4: 500 Duplicate Notification Storm"
+      }
+    },
+    "/api/v1/simulations/multilingual-emergency": {
+      "post": {
+        "tags": [
+          "Simulations"
+        ],
+        "summary": "Run Challenge 5: Multilingual Emergency Broadcast"
+      }
+    },
+    "/health": {
+      "get": {
+        "tags": [
+          "Health"
+        ],
+        "security": [],
+        "summary": "Detailed component connectivity & mode health check"
+      }
+    },
+    "/metrics": {
+      "get": {
+        "tags": [
+          "Health"
+        ],
+        "security": [],
+        "summary": "Prometheus text exposition metrics"
+      }
+    }
+  }
+}

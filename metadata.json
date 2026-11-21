@@ -1,0 +1,8 @@
+{
+  "name": "Event-Driven Financial Notification Engine",
+  "description": "Enterprise event-driven financial notification engine with multi-channel delivery (SMS, Email, Push, WhatsApp, In-App), TRAI DND compliance, atomic frequency capping, circuit breaking, Kafka/RabbitMQ pipeline, and real-time operations dashboard.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}

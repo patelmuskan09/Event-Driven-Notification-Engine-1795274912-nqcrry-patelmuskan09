@@ -1,0 +1,28 @@
+sequenceDiagram
+    autonumber
+    actor System as Market / SIP Engine
+    participant Ingestion as Ingestion API
+    participant Kafka as Kafka: notification-events
+    participant FreqCap as Redis Atomic Frequency Capping
+    participant QuietHours as Timezone Quiet Hours Service
+    participant Queue as Morning Quiet Hours Queue
+    participant Dispatcher as Morning Digest Batch Dispatcher
+    participant User as Recipient Client
+
+    System->>Ingestion: POST /api/v1/events (MKTX-004 / SIPX-004)
+    Ingestion->>Kafka: Stream standard event (Partition by user_id hash)
+    Kafka->>FreqCap: Check Rolling User Cap (12/24h) & Same Event Cooldown (15m)
+    alt Cap Exceeded
+        FreqCap-->>Kafka: CAPPED: Suppress send, record audit metric
+    else Cap Allowed
+        FreqCap->>QuietHours: Evaluate Current Time in User's Timezone (21:00-08:00)
+        alt In Quiet Hours Window
+            QuietHours->>Queue: Enqueue NotificationRecord into Redis ZSET
+            Note over Queue: Queued for Morning Dispatch (08:00)
+            opt If >5 Notifications Accumulated
+                Dispatcher->>User: Aggregate into Single Digest Summary at 08:00 AM
+            end
+        else Outside Quiet Hours
+            QuietHours->>User: Immediate Dispatch to In-App / Push
+        end
+    end

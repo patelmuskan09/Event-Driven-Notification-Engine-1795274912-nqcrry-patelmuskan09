@@ -1,0 +1,46 @@
+sequenceDiagram
+    autonumber
+    actor Worker as Channel Delivery Worker
+    participant Breaker as Circuit Breaker (MSG91)
+    participant Primary as Primary Provider (MSG91)
+    participant Secondary as Failover Provider (Twilio)
+    participant WA as Fallback Channel (WhatsApp)
+    participant Ops as Operations Alerting & Sentry
+    participant StateMachine as State Machine & State Log
+
+    Note over Breaker: State = CLOSED (Healthy)
+    Worker->>Breaker: canExecute()?
+    Breaker-->>Worker: true
+    Worker->>Primary: send(notification)
+    Primary-->>Worker: HTTP 503 / Gateway Timeout (Failure 1)
+    Worker->>Breaker: recordFailure()
+    
+    loop 4 additional failures within 60s
+        Worker->>Primary: send(notification)
+        Primary-->>Worker: Gateway Timeout
+        Worker->>Breaker: recordFailure()
+    end
+    
+    Note over Breaker: 5 Failures Reached ➔ State = OPEN
+    Breaker->>Ops: Emit Alert: "MSG91 Breaker OPEN - High Error Rate"
+    
+    Worker->>Breaker: canExecute()?
+    Breaker-->>Worker: false (Bypass Primary)
+    Worker->>Secondary: Dispatch via Twilio Failover
+    Secondary-->>Worker: HTTP 201 Created (Success)
+    Worker->>StateMachine: Transition to SENT (Provider: Twilio, fallbackUsed: true)
+    
+    alt If both SMS providers fail (Non-critical notification)
+        Worker->>WA: Reroute to WhatsApp Cloud API
+        WA-->>Worker: HTTP 200 Delivered
+    end
+
+    Note over Breaker: After 60s Cooldown Window
+    Note over Breaker: State = HALF_OPEN (Testing recovery)
+    Worker->>Primary: Probe Canary Request
+    alt Probe Succeeds
+        Breaker->>Breaker: State = CLOSED (Recovered)
+        Breaker->>Ops: Emit Alert: "MSG91 Recovered to CLOSED"
+    else Probe Fails
+        Breaker->>Breaker: State = OPEN (Cooldown resets for 60s)
+    end

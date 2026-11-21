@@ -1,0 +1,159 @@
+version: '3.8'
+
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: notification_engine_app
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=production
+      - PORT=3000
+      - APP_SECRET=${APP_SECRET:-change-me-jwt-access-secret-min-32-chars}
+      - REFRESH_TOKEN_SECRET=${REFRESH_TOKEN_SECRET:-change-me-refresh-secret-min-32-chars}
+      - PII_ENCRYPTION_KEY=${PII_ENCRYPTION_KEY:-change-me-aes256-pii-key-32-bytes}
+      - WEBHOOK_HMAC_SECRET=${WEBHOOK_HMAC_SECRET:-change-me-webhook-hmac-secret-32c}
+      - AUTH_ADMIN_PASSWORD=${AUTH_ADMIN_PASSWORD:-change-admin-password}
+      - AUTH_OPERATOR_PASSWORD=${AUTH_OPERATOR_PASSWORD:-change-operator-password}
+      - AUTH_SERVICE_KEY=${AUTH_SERVICE_KEY:-change-service-key}
+      - DATABASE_URL=postgres://${DB_USER:-notification_user}:${DB_PASSWORD:-notification_pass}@postgres:5432/${DB_NAME:-notifications_db}
+      - REDIS_URL=redis://:${REDIS_PASSWORD:-notification_redis_pass}@redis:6379
+      - KAFKA_BROKERS=kafka:9092
+      - RABBITMQ_URL=amqp://${RABBITMQ_USER:-guest}:${RABBITMQ_PASS:-guest}@rabbitmq:5672
+      - ENABLE_REAL_PROVIDERS=${ENABLE_REAL_PROVIDERS:-false}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:3000/health/live"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+    deploy:
+      resources:
+        limits:
+          cpus: '2.0'
+          memory: 2048M
+        reservations:
+          cpus: '0.5'
+          memory: 512M
+
+  postgres:
+    image: postgres:15-alpine
+    container_name: notification_postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${DB_USER:-notification_user}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-notification_pass}
+      POSTGRES_DB: ${DB_NAME:-notifications_db}
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./src/database/migrations:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-notification_user} -d ${DB_NAME:-notifications_db}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 1024M
+
+  redis:
+    image: redis:7-alpine
+    container_name: notification_redis
+    restart: unless-stopped
+    command: >
+      redis-server --appendonly yes --maxmemory 512mb --maxmemory-policy volatile-lru
+      --requirepass ${REDIS_PASSWORD:-notification_redis_pass}
+    ports:
+      - "6379:6379"
+    volumes:
+      - redisdata:/data
+    healthcheck:
+      test: ["CMD-SHELL", "redis-cli -a ${REDIS_PASSWORD:-notification_redis_pass} ping | grep PONG"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 512M
+
+  kafka:
+    image: confluentinc/cp-kafka:7.5.0
+    container_name: notification_kafka
+    restart: unless-stopped
+    ports:
+      - "9092:9092"
+      - "29092:29092"
+    environment:
+      KAFKA_NODE_ID: 1
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: 'CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT'
+      KAFKA_ADVERTISED_LISTENERS: 'PLAINTEXT://kafka:9092,PLAINTEXT_HOST://localhost:29092'
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_PROCESS_ROLES: 'broker,controller'
+      KAFKA_CONTROLLER_QUORUM_VOTERS: '1@kafka:29093'
+      KAFKA_LISTENERS: 'PLAINTEXT://0.0.0.0:9092,CONTROLLER://0.0.0.0:29093,PLAINTEXT_HOST://0.0.0.0:29092'
+      KAFKA_INTER_BROKER_LISTENER_NAME: 'PLAINTEXT'
+      KAFKA_CONTROLLER_LISTENER_NAMES: 'CONTROLLER'
+      KAFKA_LOG_DIRS: '/tmp/kraft-combined-logs'
+      CLUSTER_ID: 'MkU3OEVBNTcwNTJENDM2Qk'
+    volumes:
+      - kafkadata:/var/lib/kafka/data
+    healthcheck:
+      test: ["CMD-SHELL", "kafka-broker-api-versions --bootstrap-server localhost:9092 || exit 1"]
+      interval: 15s
+      timeout: 10s
+      retries: 6
+      start_period: 25s
+    deploy:
+      resources:
+        limits:
+          cpus: '1.5'
+          memory: 1536M
+
+  rabbitmq:
+    image: rabbitmq:3.12-management-alpine
+    container_name: notification_rabbitmq
+    restart: unless-stopped
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER:-guest}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASS:-guest}
+    volumes:
+      - rabbitmqdata:/var/lib/rabbitmq
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 1024M
+
+volumes:
+  pgdata:
+  redisdata:
+  kafkadata:
+  rabbitmqdata:

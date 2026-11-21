@@ -1,0 +1,36 @@
+sequenceDiagram
+    autonumber
+    actor MarginEngine as RMS / Margin Engine
+    participant KafkaCrit as Kafka: notification-critical
+    participant Consumer as Dedicated High-Priority Consumer
+    participant Enrichment as User Enrichment Service
+    participant DndService as TRAI DND Compliance Service
+    participant FreqCap as Redis Atomic Frequency Cap Service
+    participant Router as Regulatory Multi-Channel Router
+    participant Templates as Multi-Lingual Template Engine
+    participant RabbitMQ as RabbitMQ Priority Queue (Critical)
+    participant Worker as SMS & Push Delivery Workers
+    participant Providers as Provider Cluster (MSG91 / Twilio / FCM)
+    participant Analytics as Prometheus & Real-Time Analytics
+
+    MarginEngine->>KafkaCrit: Publish RISK-001 (CorrelationId, IdempotencyKey)
+    KafkaCrit->>Consumer: Poll with manual offset commit
+    Consumer->>Enrichment: Enrich User Context (Phone, Email, KYC, Segment)
+    Consumer->>Router: Priority 1 - Regulatory Mandate Assessment
+    Note over Router: Regulatory Directive: Margin calls MUST dispatch via SMS, Email, Push
+    Consumer->>FreqCap: Check Frequency Cap
+    Note over FreqCap: CRITICAL_BYPASS: Mandatory margin call never blocked
+    Consumer->>Templates: Render Personalized Template (Hindi/English fallback, currency formatting)
+    Consumer->>RabbitMQ: Enqueue to notifications.priority.critical
+    RabbitMQ->>Worker: Consume high-priority task
+    Worker->>DndService: Immediate Pre-Dispatch DND Verification
+    Note over DndService: TRAI UCC Regulation 2018 Statutory Exemption (REGULATORY_BYPASS)
+    Worker->>Providers: Dispatch SMS to MSG91 Sandbox
+    alt MSG91 Responds OK (<100ms)
+        Providers-->>Worker: Delivery Receipt (External ID)
+    else MSG91 Fails / Gateway Timeout
+        Worker->>Providers: Autonomous Failover to Secondary Twilio SMS
+        Providers-->>Worker: Twilio Accepted (HTTP 201)
+    end
+    Worker->>Analytics: Record Delivery, Cost & Latency (P99 < 10s SEBI Target)
+    Worker->>KafkaCrit: Commit manual offset

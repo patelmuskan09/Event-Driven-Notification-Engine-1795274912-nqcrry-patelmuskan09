@@ -1,0 +1,47 @@
+version: '3.8'
+
+services:
+  test-runner:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    command: npm run test:coverage
+    environment:
+      - NODE_ENV=test
+      - DATABASE_URL=postgres://test_user:test_pass@postgres-test:5432/notifications_test
+      - REDIS_URL=redis://redis-test:6379
+      - ENABLE_POSTGRES=true
+      - ENABLE_REDIS=true
+      - ENABLE_KAFKA=false
+      - ENABLE_RABBITMQ=false
+    depends_on:
+      postgres-test:
+        condition: service_healthy
+      redis-test:
+        condition: service_healthy
+
+  postgres-test:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_USER: test_user
+      POSTGRES_PASSWORD: test_pass
+      POSTGRES_DB: notifications_test
+    volumes:
+      - ./src/database/migrations:/docker-entrypoint-initdb.d:ro
+    tmpfs:
+      - /var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U test_user -d notifications_test"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  redis-test:
+    image: redis:7-alpine
+    tmpfs:
+      - /data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
